@@ -11,7 +11,18 @@ use tokio::signal;
 use tokio::time::{sleep, Instant};
 
 #[derive(Parser, Debug)]
-#[command(version, about = "Kafka producer for stream processing example", long_about = None)]
+#[command(
+    version,
+    author = "Michal Mozdzonek",
+    about = "Kafka producer for stream processing example",
+    long_about = "This is a simple Kafka producer application designed to generate and send messages to a specified topic at a controlled rate. It's useful for testing stream processing applications and simulating real-world data streams.
+
+The producer can generate two types of messages:
+1.  **Numeric messages**: A random number within a configurable range.
+2.  **Corrupted messages**: A random alphanumeric string, which are used to simulate malformed or unexpected data.
+
+You can control the message rate, the numeric range, and the probability of sending a corrupted message. The application will run indefinitely until a shutdown signal (e.g., Ctrl+C) is received, at which point it will perform a graceful shutdown by flushing any remaining messages."
+)]
 struct Args {
     #[arg(short, long, default_value = "localhost:9095")]
     brokers: String,
