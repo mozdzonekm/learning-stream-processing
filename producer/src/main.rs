@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
+use rand::distr::Alphanumeric;
+use rand::{rng, Rng};
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
+use rdkafka::util::Timeout;
 use std::time::Duration;
 use tokio::pin;
 use tokio::signal;
@@ -18,6 +21,15 @@ struct Args {
 
     #[arg(short, long, default_value_t = 1)]
     events_per_second: u64,
+
+    #[arg(short = 'l', long, default_value_t = 0)]
+    message_value_lower_bound: u32,
+
+    #[arg(short = 'u', long, default_value_t = 12)]
+    message_value_upper_bound: u32,
+
+    #[arg(short, long, default_value_t = 0.01)]
+    corrupted_record_propability: f64,
 }
 
 #[tokio::main]
@@ -46,14 +58,22 @@ async fn main() -> Result<()> {
 
         tokio::select! {
             _ = sleep(delay) => {
-                let payload = format!("Message {}", message_count);
+                let mut rng = rng();
+                let payload = if rng.random_bool(args.corrupted_record_propability) {
+                            rng.sample_iter(&Alphanumeric)
+                                .take(20)
+                                .map(char::from)
+                                .collect::<String>()
+                        } else {
+                            rng.random_range(args.message_value_lower_bound..=args.message_value_upper_bound).to_string()
+                        };
                 let key = format!("Key {}", message_count);
 
                 let record = FutureRecord::to(&args.topic)
                     .payload(&payload)
                     .key(&key);
 
-                match producer.send(record, Duration::from_secs(0)).await {
+                match producer.send(record, Timeout::Never).await {
                     Ok(_) => println!("Message sent successfully: {}", payload),
                     Err((e, _)) => eprintln!("Failed to send message: {:?}", e),
                 }
